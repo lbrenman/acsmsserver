@@ -5,6 +5,7 @@ var APIBuilder = require('@axway/api-builder-runtime');
 
 const lib = require('../utils/lib');
 const twilioClient = require('twilio');
+const MessagingResponse = require('twilio').twiml.MessagingResponse;
 
 function consoleLog(str) {
   if(debugConsoleLog){console.log(str)}
@@ -53,8 +54,12 @@ var webhook = APIBuilder.API.extend({
       }
     }
 
-    // Respond to Twilio Webhook Request
+    // Respond to Twilio Webhook Request and let user know that a response is pending
+    const twiml = new MessagingResponse();
+    twiml.message('Hang tight, we are working on your request ...');
+    resp.setHeader('Content-Type', 'text/xml');
 		resp.response.status(200);
+    resp.response.send(twiml.toString())
 		next();
 
     // Check that SMS comes from a whitelisted user
@@ -69,7 +74,7 @@ var webhook = APIBuilder.API.extend({
 					consoleLog('Whitelist DB error, either user not whitelisted or duplicate users with same mobile phone number found');
 				}
 			} else {
-				consoleLog('Whitelist EB error = '+e.results);
+				consoleLog('Whitelist DB error = '+e.results);
 			}
 		});
 
