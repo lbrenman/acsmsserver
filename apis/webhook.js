@@ -1,10 +1,11 @@
-let debugConsoleLog = true;
-let validateTwilioWebhook = false;
-
 var APIBuilder = require('@axway/api-builder-runtime');
-
-const lib = require('../utils/lib');
 const twilioClient = require('twilio');
+const lib = require('../utils/lib');
+
+const debugConsoleLog = true;
+const validateTwilioWebhook = true;
+const apiPath = '/api/webhook';
+
 const MessagingResponse = require('twilio').twiml.MessagingResponse;
 
 function consoleLog(str) {
@@ -13,7 +14,7 @@ function consoleLog(str) {
 
 var webhook = APIBuilder.API.extend({
 	group: 'Metrics',
-	path: '/api/webhook',
+	path: apiPath,
 	method: 'POST',
 	description: 'Twilio SMS Webhook',
 	parameters: {
@@ -41,13 +42,14 @@ var webhook = APIBuilder.API.extend({
 
 		consoleLog('webhook called');
     // consoleLog(req.body.From);
-    // consoleLog(req.headers['x-twilio-signature']);
+    // consoleLog(req.headers);
 
     // Validate request is from Twilio
+    // https://www.twilio.com/docs/usage/security
     if(validateTwilioWebhook) {
-      // https://www.twilio.com/docs/usage/security
-      if(!twilioClient.validateRequest(process.env.TWILIO_AUTHTOKEN, req.headers['x-twilio-signature'], process.env.TWILIO_WEBHOOK_URL, req.body)) {
-        consoleLog('Invalide Twilio Signature!!!');
+      let webhookURL = 'https://'+req.headers.host+apiPath;
+      if(!twilioClient.validateRequest(process.env.TWILIO_AUTHTOKEN, req.headers['x-twilio-signature'], webhookURL, req.body)) {
+        consoleLog('Invalid Twilio Signature!!!');
         resp.response.status(500);
     		next();
         return;
@@ -55,6 +57,7 @@ var webhook = APIBuilder.API.extend({
     }
 
     // Respond to Twilio Webhook Request and let user know that a response is pending
+    // https://www.twilio.com/docs/sms/tutorials/how-to-receive-and-reply-node-js
     const twiml = new MessagingResponse();
     twiml.message('Hang tight, we are working on your request ...');
     resp.setHeader('Content-Type', 'text/xml');
