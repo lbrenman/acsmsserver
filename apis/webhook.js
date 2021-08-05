@@ -1,8 +1,10 @@
+let debugConsoleLog = true;
+let validateTwilioWebhook = false;
+
 var APIBuilder = require('@axway/api-builder-runtime');
 
-let lib = require('../utils/lib');
-
-let debugConsoleLog = true;
+const lib = require('../utils/lib');
+const twilioClient = require('twilio');
 
 function consoleLog(str) {
   if(debugConsoleLog){console.log(str)}
@@ -37,16 +39,31 @@ var webhook = APIBuilder.API.extend({
 	action: function (req, resp, next) {
 
 		consoleLog('webhook called');
-		consoleLog(req.body.From);
+    // consoleLog(req.body.From);
+    // consoleLog(req.headers['x-twilio-signature']);
 
+    // Validate request is from Twilio
+    if(validateTwilioWebhook) {
+      // https://www.twilio.com/docs/usage/security
+      if(!twilioClient.validateRequest(process.env.TWILIO_AUTHTOKEN, req.headers['x-twilio-signature'], process.env.TWILIO_WEBHOOK_URL, req.body)) {
+        consoleLog('Invalide Twilio Signature!!!');
+        resp.response.status(500);
+    		next();
+        return;
+      }
+    }
+
+    // Respond to Twilio Webhook Request
 		resp.response.status(200);
 		next();
 
+    // Check that SMS comes from a whitelisted user
 		lib.checkUserWhitelist(req.body.From, function(e) {
 			if(e.success) {
 				if(e.results.length == 1) {
 					consoleLog('User found in Whitelist DB');
 					// consoleLog(e.results);
+          // Process message
 					lib.processSMSMessage(req.body);
 				} else {
 					consoleLog('Whitelist DB error, either user not whitelisted or duplicate users with same mobile phone number found');
