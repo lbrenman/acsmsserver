@@ -1,5 +1,7 @@
 var APIBuilder = require('@axway/api-builder-runtime');
 
+const twilioClient = require('twilio');
+
 const debugConsoleLog = true;
 
 let aclib = require('../utils/aclib');
@@ -7,6 +9,19 @@ let aclib = require('../utils/aclib');
 module.exports = {
   checkUserWhitelist,
   processSMSMessage
+}
+
+function sendSMS(from, to, msg) {
+  var twilio = new twilioClient(process.env.TWILIO_ACCOUNTSID, process.env.TWILIO_AUTHTOKEN);
+
+  twilio.messages.create({
+    from: from,
+    to: to,
+    body: msg
+  }, function(err, result) {
+    consoleLog('Mesage sent');
+    consoleLog(result.sid);
+  });
 }
 
 function consoleLog(str) {
@@ -48,6 +63,7 @@ function processSMSMessage(msg, user) {
   aclib.init(acsaclientid, acsaclientsecret, acbaseurl, function(e){
     aclib.getEnvironments(function(f){
       console.log(f);
+      sendSMS(process.env.TWILIO_FROM_NUMBER, msg.From, 'Test Message');
     })
   });
 
