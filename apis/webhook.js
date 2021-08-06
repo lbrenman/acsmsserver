@@ -3,13 +3,26 @@ const twilioClient = require('twilio');
 const lib = require('../utils/lib');
 
 const debugConsoleLog = true;
-const validateTwilioWebhook = true;
+const validateTwilioWebhook = false;
 const apiPath = '/api/webhook';
 
 const MessagingResponse = require('twilio').twiml.MessagingResponse;
 
 function consoleLog(str) {
   if(debugConsoleLog){console.log(str)}
+}
+
+function sendResponse(req, resp, next, statusCode, msg) {
+  consoleLog('sendResponse() called');
+
+  // Respond to Twilio Webhook Request and let user know that a response is pending
+  // https://www.twilio.com/docs/sms/tutorials/how-to-receive-and-reply-node-js
+  const twiml = new MessagingResponse();
+  twiml.message(msg);
+  resp.setHeader('Content-Type', 'text/xml');
+  resp.response.status(statusCode);
+  resp.response.send(twiml.toString())
+  next();
 }
 
 var webhook = APIBuilder.API.extend({
@@ -56,14 +69,7 @@ var webhook = APIBuilder.API.extend({
       }
     }
 
-    // Respond to Twilio Webhook Request and let user know that a response is pending
-    // https://www.twilio.com/docs/sms/tutorials/how-to-receive-and-reply-node-js
-    const twiml = new MessagingResponse();
-    twiml.message('Hang tight, we are working on your request ...');
-    resp.setHeader('Content-Type', 'text/xml');
-		resp.response.status(200);
-    resp.response.send(twiml.toString())
-		next();
+    // sendResponse(req, resp, next, 200, 'Hang tight, we are working on your request ...');
 
     // Check that SMS comes from a whitelisted user
 		lib.checkUserWhitelist(req.body.From, function(e) {
@@ -71,13 +77,16 @@ var webhook = APIBuilder.API.extend({
 				if(e.results.length == 1) {
 					consoleLog('User found in Whitelist DB');
 					// consoleLog(e.results);
+          sendResponse(req, resp, next, 200, 'Hang tight, we are working on your request ...');
           // Process message
-					lib.processSMSMessage(req.body);
+					lib.processSMSMessage(req.body, JSON.parse(JSON.stringify(e.results[0])));
 				} else {
 					consoleLog('Whitelist DB error, either user not whitelisted or duplicate users with same mobile phone number found');
+          sendResponse(req, resp, next, 200, 'You are unauthorized to use this service. Please contact IT.');
 				}
 			} else {
 				consoleLog('Whitelist DB error = '+e.results);
+        sendResponse(req, resp, next, 200, 'Service error. Please try again later or contact IT.');
 			}
 		});
 
