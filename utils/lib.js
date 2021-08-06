@@ -62,8 +62,15 @@ function processSMSMessage(msg, user) {
 
   aclib.init(acsaclientid, acsaclientsecret, acbaseurl, function(e){
     aclib.getEnvironments(function(f){
-      console.log(f);
-      sendSMS(process.env.TWILIO_FROM_NUMBER, msg.From, 'Test Message');
+
+      var environments = f.data;
+      var message='Environments:\n';
+      environments.forEach((item, i) => {
+        message += item.name+'\n'
+      });
+
+      sendSMS(process.env.TWILIO_FROM_NUMBER, msg.From, message);
+      
     })
   });
 
